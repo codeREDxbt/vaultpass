@@ -41,14 +41,17 @@ function isGate(value: unknown): value is GateRecord {
     gate.contractVersion === "credential-hash-v2";
 }
 
-/** Normalize contract address to lowercase hex without 0x for storage keys; keep full form for chain calls. */
+/**
+ * Normalize contract address to lowercase bare hex (no 0x).
+ * Midnight JS / Compact reject a 0x prefix on contractAddress; explorer helpers re-add 0x for URLs.
+ */
 export function normalizeContractId(value: string): string {
   return value.trim().replace(/^0x/i, "").toLowerCase();
 }
 
+/** Canonical storage / share-link form: bare hex (matches chain SDK). */
 export function formatContractId(value: string): string {
-  const hex = normalizeContractId(value);
-  return hex ? `0x${hex}` : "";
+  return normalizeContractId(value);
 }
 
 /**

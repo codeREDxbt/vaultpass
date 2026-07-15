@@ -72,6 +72,18 @@ export type ContractIndexLookup = {
   detail: string;
 };
 
+/**
+ * Midnight JS / Compact (`createUnprovenCallTx`, signing keys) reject a `0x` prefix.
+ * Explorer and some UI paths prefer `0x…`. Always convert at the SDK boundary.
+ */
+export function toChainContractAddress(contractId: string): string {
+  const hex = contractId.trim().replace(/^0x/i, "").toLowerCase();
+  if (!hex || hex.length % 2 !== 0 || /[^0-9a-f]/.test(hex) || hex.length < 32) {
+    throw new Error(`Invalid contract address: ${contractId}`);
+  }
+  return hex;
+}
+
 function contractAddressCandidates(contractId: string): string[] {
   const raw = contractId.trim();
   const noPrefix = raw.replace(/^0x/i, "");
@@ -192,6 +204,10 @@ function persistSigningKey(contractAddress: string, signingKey: unknown): void {
   try {
     const serialized = typeof signingKey === "string" ? signingKey : JSON.stringify(signingKey);
     const store = JSON.parse(window.localStorage.getItem(SIGNING_KEY_STORAGE) ?? "{}") as Record<string, string>;
+    // Store under bare hex (SDK form) and legacy 0x form for older sessions.
+    const chain = contractAddress.replace(/^0x/i, "").toLowerCase();
+    store[chain] = serialized;
+    store[`0x${chain}`] = serialized;
     store[contractAddress] = serialized;
     window.localStorage.setItem(SIGNING_KEY_STORAGE, JSON.stringify(store));
   } catch {
@@ -203,7 +219,13 @@ function loadSigningKey(contractAddress: string): unknown | null {
   if (typeof window === "undefined") return null;
   try {
     const store = JSON.parse(window.localStorage.getItem(SIGNING_KEY_STORAGE) ?? "{}") as Record<string, string>;
-    const raw = store[contractAddress];
+    let raw: string | undefined;
+    for (const key of contractAddressCandidates(contractAddress)) {
+      if (store[key]) {
+        raw = store[key];
+        break;
+      }
+    }
     if (!raw) return null;
     if (raw.startsWith("{") || raw.startsWith("[")) return JSON.parse(raw);
     return raw;
@@ -301,14 +323,29 @@ function createPrivateStateProvider() {
   const scoped = (id: string) => `${contractAddress}:${id}`;
 
   return {
-    setContractAddress: (address: string) => { contractAddress = address; },
+    setContractAddress: (address: string) => {
+      contractAddress = address.replace(/^0x/i, "").toLowerCase();
+    },
     get: async (id: string) => states.get(scoped(id)) ?? null,
     set: async (id: string, value: unknown) => { states.set(scoped(id), value); },
     remove: async (id: string) => { states.delete(scoped(id)); },
     clear: async () => { states.clear(); },
-    getSigningKey: async (address: string) => signingKeys.get(address) ?? null,
-    setSigningKey: async (address: string, key: unknown) => { signingKeys.set(address, key); },
-    removeSigningKey: async (address: string) => { signingKeys.delete(address); },
+    getSigningKey: async (address: string) => {
+      for (const key of contractAddressCandidates(address)) {
+        const found = signingKeys.get(key);
+        if (found != null) return found;
+      }
+      return null;
+    },
+    setSigningKey: async (address: string, key: unknown) => {
+      const chain = address.replace(/^0x/i, "").toLowerCase();
+      signingKeys.set(chain, key);
+      signingKeys.set(`0x${chain}`, key);
+      signingKeys.set(address, key);
+    },
+    removeSigningKey: async (address: string) => {
+      for (const key of contractAddressCandidates(address)) signingKeys.delete(key);
+    },
     clearSigningKeys: async () => { signingKeys.clear(); },
     exportPrivateStates: async () => { throw new Error("Private state export is not enabled in this browser session."); },
     importPrivateStates: async () => { throw new Error("Private state import is not enabled in this browser session."); },
@@ -659,11 +696,12 @@ export class VaultPassClient {
 
   private async ensureContractSigningKey(contractAddress: string): Promise<void> {
     if (!this.providers) return;
-    const existing = await this.providers.privateStateProvider.getSigningKey(contractAddress);
+    const chainAddress = toChainContractAddress(contractAddress);
+    const existing = await this.providers.privateStateProvider.getSigningKey(chainAddress);
     if (existing) return;
-    const saved = loadSigningKey(contractAddress);
+    const saved = loadSigningKey(chainAddress);
     if (saved != null) {
-      await this.providers.privateStateProvider.setSigningKey(contractAddress, saved as never);
+      await this.providers.privateStateProvider.setSigningKey(chainAddress, saved as never);
     }
   }
 
@@ -761,7 +799,7 @@ export class VaultPassClient {
       : typeof submitted === "object" && submitted !== null && typeof (submitted as { transactionId?: unknown }).transactionId === "string"
         ? (submitted as { transactionId: string }).transactionId
         : null;
-    const contractId = String(txData.public.contractAddress);
+    const contractId = toChainContractAddress(String(txData.public.contractAddress));
     const storedSigningKey = txData.private.signingKey ?? signingKey;
     try {
       providers.privateStateProvider.setContractAddress(contractId);
@@ -777,23 +815,26 @@ export class VaultPassClient {
     if (!this.session) throw new Error("WALLET_NOT_CONNECTED");
     const deadline = Date.now() + timeoutMs;
     let lastError = "";
+    const addresses = contractAddressCandidates(contractId);
 
     while (Date.now() < deadline) {
-      try {
-        const response = await fetch(this.session.indexerUrl, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            query: "query LatestContractState($address: HexEncoded!) { contractAction(address: $address) { state } }",
-            variables: { address: contractId },
-          }),
-        });
-        if (!response.ok) throw new Error(`Indexer HTTP ${response.status}`);
-        const payload = await response.json() as { data?: { contractAction?: { state?: string } | null }; errors?: Array<{ message?: string }> };
-        if (payload.errors?.length) throw new Error(payload.errors.map((error) => error.message ?? "Indexer query failed").join("; "));
-        if (payload.data?.contractAction?.state) return;
-      } catch (error) {
-        lastError = getErrorMessage(error);
+      for (const address of addresses) {
+        try {
+          const response = await fetch(this.session.indexerUrl, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              query: "query LatestContractState($address: HexEncoded!) { contractAction(address: $address) { state } }",
+              variables: { address },
+            }),
+          });
+          if (!response.ok) throw new Error(`Indexer HTTP ${response.status}`);
+          const payload = await response.json() as { data?: { contractAction?: { state?: string } | null }; errors?: Array<{ message?: string }> };
+          if (payload.errors?.length) throw new Error(payload.errors.map((error) => error.message ?? "Indexer query failed").join("; "));
+          if (payload.data?.contractAction?.state) return;
+        } catch (error) {
+          lastError = getErrorMessage(error);
+        }
       }
       await new Promise((resolve) => window.setTimeout(resolve, 2000));
     }
@@ -843,6 +884,7 @@ export class VaultPassClient {
     if (!contractId) throw new Error("GATE_NOT_CONFIGURED");
     if (secret.length !== 32) throw new Error("CREDENTIAL_FORMAT");
     const pureSecret = ensureBytes32(secret);
+    const chainAddress = toChainContractAddress(contractId);
 
     const [{ Contract }, { CompiledContract }, { createUnprovenCallTx }] = await Promise.all([
       import("../../public/contract/vault_pass/contract/index.js"),
@@ -852,12 +894,12 @@ export class VaultPassClient {
     const caller = this.addresses.shieldedCoinPublicKey ?? this.addresses.coinPublicKey;
     if (!caller || !this.session) throw new Error("Wallet returned an invalid public key.");
     const callerBytes = ensureBytes32(await decodeCoinPublicKey(caller, this.session.networkId));
-    await this.ensureContractSigningKey(contractId);
+    await this.ensureContractSigningKey(chainAddress);
 
     // Preflight membership so the member gets a clear error before proving.
     try {
       const hash = ensureBytes32(await this.getCredentialHash(pureSecret));
-      if (!(await this.isCredentialEnrolled(contractId, hash))) {
+      if (!(await this.isCredentialEnrolled(chainAddress, hash))) {
         throw new Error("CREDENTIAL_NOT_ENROLLED");
       }
     } catch (error) {
@@ -882,7 +924,7 @@ export class VaultPassClient {
     try {
       callTxData = await createUnprovenCallTx(providers as never, {
         compiledContract,
-        contractAddress: contractId,
+        contractAddress: chainAddress,
         circuitId: "verify_access",
         args: [],
       } as never) as unknown as { private: { unprovenTx: unknown } };
@@ -933,12 +975,18 @@ export class VaultPassClient {
       import("../../public/contract/vault_pass/contract/index.js"),
       import("@midnight-ntwrk/compact-runtime"),
     ]);
-    const data = await queryIndexer(
-      this.session.indexerUrl,
-      "query LatestContractState($address: HexEncoded!) { contractAction(address: $address) { state } }",
-      { address: contractId },
-    );
-    const action = data.contractAction as { state?: string } | null | undefined;
+    const query =
+      "query LatestContractState($address: HexEncoded!) { contractAction(address: $address) { state } }";
+    let action: { state?: string } | null | undefined;
+    for (const address of contractAddressCandidates(contractId)) {
+      try {
+        const data = await queryIndexer(this.session.indexerUrl, query, { address });
+        action = data.contractAction as { state?: string } | null | undefined;
+        if (action?.state) break;
+      } catch {
+        // try next address encoding
+      }
+    }
     if (!action?.state) return null;
     const state = ContractState.deserialize(hexToUint8Array(action.state));
     if (!state?.data) return null;
@@ -966,6 +1014,7 @@ export class VaultPassClient {
     if (!contractId) throw new Error("GATE_NOT_CONFIGURED");
     if (secret.length !== 32) throw new Error("CREDENTIAL_FORMAT");
     const pureSecret = ensureBytes32(secret);
+    const chainAddress = toChainContractAddress(contractId);
 
     const [{ Contract }, { CompiledContract }, { createUnprovenCallTx }] = await Promise.all([
       import("../../public/contract/vault_pass/contract/index.js"),
@@ -984,7 +1033,7 @@ export class VaultPassClient {
     }
 
     try {
-      const contractLedger = await this.readContractLedger(contractId);
+      const contractLedger = await this.readContractLedger(chainAddress);
       if (!contractLedger) throw new Error("Gate contract state is not available on the Preview indexer yet.");
       const admin = ensureBytes32(contractLedger.admin);
       if (!bytesEqual(admin, callerBytes)) {
@@ -999,7 +1048,7 @@ export class VaultPassClient {
       throw new Error(`CREDENTIAL_CHECK:${message}`);
     }
 
-    await this.ensureContractSigningKey(contractId);
+    await this.ensureContractSigningKey(chainAddress);
 
     const witnesses = {
       get_secret: (context: { privateState: unknown }) => [context.privateState, pureSecret] as [unknown, Uint8Array],
@@ -1016,7 +1065,7 @@ export class VaultPassClient {
     try {
       callTxData = await createUnprovenCallTx(providers as never, {
         compiledContract,
-        contractAddress: contractId,
+        contractAddress: chainAddress,
         circuitId: "add_valid_credential",
         args: [credentialHash],
       } as never) as unknown as { private: { unprovenTx: unknown } };
