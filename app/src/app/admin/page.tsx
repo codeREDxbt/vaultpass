@@ -19,6 +19,7 @@ import { VaultPassClient, verifyContractIndexed } from "@/lib/midnight-client";
 import type { TransactionProgressStage, WalletOption } from "@/lib/midnight-client";
 import {
   DEFAULT_GATE,
+  formatContractId,
   gateUrl,
   getGate,
   isValidContractId,
@@ -204,7 +205,8 @@ export default function AdminPage() {
         ...gate,
         name: name.trim(),
         description: description.trim(),
-        contractId: result.contractId,
+        // Bare hex only — Midnight createUnprovenCallTx rejects 0x-prefixed addresses.
+        contractId: formatContractId(result.contractId),
         deploymentTxId: result.txId,
         contractVersion: "credential-hash-v2" as const,
         status: "draft" as const,
@@ -364,7 +366,13 @@ export default function AdminPage() {
       const secret = parseCredential(credential);
       setEnrollmentMessage("");
       setEnrollmentStage("preparing");
-      const result = await getClient().addCredential(secret, gate.contractId, handleEnrollmentProgress);
+      const contractAddress = formatContractId(gate.contractId);
+      if (gate.contractId !== contractAddress) {
+        const normalized = { ...gate, contractId: contractAddress };
+        saveGate(normalized);
+        setGate(normalized);
+      }
+      const result = await getClient().addCredential(secret, contractAddress, handleEnrollmentProgress);
       if (result.alreadyEnrolled) {
         completeEnrollment();
         setEnrollmentMessage("This credential hash was already enrolled on Preview. No duplicate transaction was submitted.");
@@ -373,7 +381,7 @@ export default function AdminPage() {
 
       setPendingEnrollment({ credentialHash: result.credentialHash, txId: result.txId });
       setEnrollmentStage("confirming");
-      await getClient().waitForCredentialEnrollment(gate.contractId, result.credentialHash);
+      await getClient().waitForCredentialEnrollment(contractAddress, result.credentialHash);
       completeEnrollment();
     } catch (error) {
       const message = VaultPassClient.messageFor(error);

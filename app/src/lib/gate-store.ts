@@ -46,12 +46,24 @@ function isGate(value: unknown): value is GateRecord {
  * Midnight JS / Compact reject a 0x prefix on contractAddress; explorer helpers re-add 0x for URLs.
  */
 export function normalizeContractId(value: string): string {
-  return value.trim().replace(/^0x/i, "").toLowerCase();
+  let hex = String(value ?? "").trim().replace(/^\uFEFF/, "");
+  while (/^0x/i.test(hex)) {
+    hex = hex.slice(2).trim();
+  }
+  return hex.toLowerCase();
 }
 
 /** Canonical storage / share-link form: bare hex (matches chain SDK). */
 export function formatContractId(value: string): string {
   return normalizeContractId(value);
+}
+
+/** Migrate any gate records that still store `0x…` contract ids. */
+function sanitizeGate(gate: GateRecord): GateRecord {
+  if (!gate.contractId) return gate;
+  const bare = normalizeContractId(gate.contractId);
+  if (bare === gate.contractId) return gate;
+  return { ...gate, contractId: bare || null };
 }
 
 /**
@@ -73,8 +85,21 @@ export function getGates(): GateRecord[] {
   if (typeof window === "undefined") return [DEFAULT_GATE];
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    const gates = Array.isArray(parsed) ? parsed.filter(isGate) : [];
-    return gates.length > 0 ? gates : [DEFAULT_GATE];
+    const gates = Array.isArray(parsed) ? parsed.filter(isGate).map(sanitizeGate) : [];
+    if (gates.length === 0) return [DEFAULT_GATE];
+    // Persist stripped ids so enroll/prove never re-read a 0x-prefixed contractId.
+    try {
+      const dirty = gates.some((gate, index) => {
+        const raw = (Array.isArray(parsed) ? parsed : [])[index] as GateRecord | undefined;
+        return Boolean(raw?.contractId && raw.contractId !== gate.contractId);
+      });
+      if (dirty || gates.some((g) => g.contractId?.startsWith("0x"))) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(gates));
+      }
+    } catch {
+      // ignore storage write failures
+    }
+    return gates;
   } catch {
     return [DEFAULT_GATE];
   }
@@ -92,13 +117,14 @@ export function getGateByContractId(contractId: string): GateRecord | null {
 
 export function saveGate(gate: GateRecord): void {
   if (typeof window === "undefined") return;
-  const gates = getGates().filter((item) => item.id !== gate.id);
+  const cleaned = sanitizeGate(gate);
+  const gates = getGates().filter((item) => item.id !== cleaned.id);
   // Also drop any other record pointing at the same contract to avoid duplicates.
   const filtered = gates.filter((item) => {
-    if (!item.contractId || !gate.contractId) return true;
-    return normalizeContractId(item.contractId) !== normalizeContractId(gate.contractId);
+    if (!item.contractId || !cleaned.contractId) return true;
+    return normalizeContractId(item.contractId) !== normalizeContractId(cleaned.contractId);
   });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...filtered, gate]));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...filtered, cleaned]));
 }
 
 /**

@@ -75,9 +75,16 @@ export type ContractIndexLookup = {
 /**
  * Midnight JS / Compact (`createUnprovenCallTx`, signing keys) reject a `0x` prefix.
  * Explorer and some UI paths prefer `0x…`. Always convert at the SDK boundary.
+ * Strips every leading `0x`/`0X` (and whitespace) until the string is bare hex.
  */
 export function toChainContractAddress(contractId: string): string {
-  const hex = contractId.trim().replace(/^0x/i, "").toLowerCase();
+  let hex = String(contractId ?? "").trim();
+  // Defensive: strip repeated prefixes and accidental whitespace/BOM.
+  hex = hex.replace(/^\uFEFF/, "");
+  while (/^0x/i.test(hex)) {
+    hex = hex.slice(2).trim();
+  }
+  hex = hex.toLowerCase();
   if (!hex || hex.length % 2 !== 0 || /[^0-9a-f]/.test(hex) || hex.length < 32) {
     throw new Error(`Invalid contract address: ${contractId}`);
   }
@@ -132,7 +139,8 @@ export async function verifyContractIndexed(
       if (action?.state || action?.__typename) {
         return {
           found: true,
-          resolvedAddress: address,
+          // Always bare hex — never re-save the 0x form the indexer accepted as a query string.
+          resolvedAddress: toChainContractAddress(address),
           detail: `Indexed via ${indexerUrl}`,
         };
       }
@@ -526,26 +534,36 @@ export class VaultPassClient {
       }
     }
     const basePublicDataProvider = indexerPublicDataProvider(this.session.indexerUrl, this.session.indexerWsUrl);
+    // Always strip 0x before any public-data call — base SDK asserts bare ContractAddress.
+    const chainAddr = (address: string) => {
+      try {
+        return toChainContractAddress(address);
+      } catch {
+        return String(address ?? "").replace(/^0x/i, "").toLowerCase();
+      }
+    };
     const publicDataProvider = this.session.networkId === "preview" || this.session.networkId === "preprod"
       ? {
           ...basePublicDataProvider,
           queryContractState: async (contractAddress: string, config?: unknown) => {
-            if (config) return basePublicDataProvider.queryContractState(contractAddress, config as never);
+            const address = chainAddr(contractAddress);
+            if (config) return basePublicDataProvider.queryContractState(address, config as never);
             const data = await queryIndexer(
               this.session!.indexerUrl,
               "query LatestContractState($address: HexEncoded!) { contractAction(address: $address) { state } }",
-              { address: contractAddress },
+              { address },
             );
             const action = data.contractAction as { state?: string } | null | undefined;
             return action?.state ? ContractState.deserialize(hexToUint8Array(action.state)) : null;
           },
           queryZSwapAndContractState: async (contractAddress: string, config?: unknown) => {
-            if (config) return basePublicDataProvider.queryZSwapAndContractState(contractAddress, config as never);
+            const address = chainAddr(contractAddress);
+            if (config) return basePublicDataProvider.queryZSwapAndContractState(address, config as never);
             try {
               const data = await queryIndexer(
                 this.session!.indexerUrl,
                 "query LatestContractAndZswapState($address: HexEncoded!) { contractAction(address: $address) { state zswapState transaction { block { ledgerParameters } } } }",
-                { address: contractAddress },
+                { address },
               );
               const action = data.contractAction as {
                 state?: string;
@@ -567,14 +585,20 @@ export class VaultPassClient {
             } catch {
               // Fall back to the SDK provider if the custom GraphQL shape fails.
               try {
-                return await basePublicDataProvider.queryZSwapAndContractState(contractAddress);
+                return await basePublicDataProvider.queryZSwapAndContractState(address);
               } catch {
                 return null;
               }
             }
           },
         }
-      : basePublicDataProvider;
+      : {
+          ...basePublicDataProvider,
+          queryContractState: async (contractAddress: string, config?: unknown) =>
+            basePublicDataProvider.queryContractState(chainAddr(contractAddress), config as never),
+          queryZSwapAndContractState: async (contractAddress: string, config?: unknown) =>
+            basePublicDataProvider.queryZSwapAndContractState(chainAddr(contractAddress), config as never),
+        };
     let provingProvider: unknown = null;
     try {
       provingProvider = this.api.getProvingProvider
@@ -920,11 +944,14 @@ export class VaultPassClient {
     const compiledContract = CompiledContract.make("VaultPass", Contract)
       .pipe(CompiledContract.withWitnesses(witnesses), CompiledContract.withCompiledFileAssets("/contract/vault_pass"));
 
+    const sdkContractAddress = toChainContractAddress(chainAddress);
+    providers.privateStateProvider.setContractAddress(sdkContractAddress);
+
     let callTxData: { private: { unprovenTx: unknown } };
     try {
       callTxData = await createUnprovenCallTx(providers as never, {
         compiledContract,
-        contractAddress: chainAddress,
+        contractAddress: sdkContractAddress,
         circuitId: "verify_access",
         args: [],
       } as never) as unknown as { private: { unprovenTx: unknown } };
@@ -1061,11 +1088,15 @@ export class VaultPassClient {
     const compiledContract = CompiledContract.make("VaultPass", Contract)
       .pipe(CompiledContract.withWitnesses(witnesses), CompiledContract.withCompiledFileAssets("/contract/vault_pass"));
 
+    // Final assert: never pass 0x into createUnprovenCallTx (SDK TypeError).
+    const sdkContractAddress = toChainContractAddress(chainAddress);
+    providers.privateStateProvider.setContractAddress(sdkContractAddress);
+
     let callTxData: { private: { unprovenTx: unknown } };
     try {
       callTxData = await createUnprovenCallTx(providers as never, {
         compiledContract,
-        contractAddress: chainAddress,
+        contractAddress: sdkContractAddress,
         circuitId: "add_valid_credential",
         args: [credentialHash],
       } as never) as unknown as { private: { unprovenTx: unknown } };
@@ -1074,6 +1105,12 @@ export class VaultPassClient {
       if (message.includes("Only the gate administrator")) throw new Error("CREDENTIAL_NOT_ADMIN");
       if (message.toLowerCase().includes("no public state")) {
         throw new Error(`CREDENTIAL_PREPARE:The gate contract is not fully indexed yet. Wait a moment after deploy, reconnect the admin wallet, and retry. (${message})`);
+      }
+      // Surface whether we still had a prefix (should never happen after strip).
+      if (/0x/i.test(message) && /prefix/i.test(message)) {
+        throw new Error(
+          `CREDENTIAL_PREPARE:Contract address still had a 0x prefix after normalization (sdk=${sdkContractAddress}, input=${contractId}). Hard-reload the app and retry. Original: ${message}`,
+        );
       }
       throw new Error(`CREDENTIAL_PREPARE:${message}`);
     }
