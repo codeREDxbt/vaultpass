@@ -96,24 +96,13 @@ function VaultPageContent() {
           : "Complete a private credential proof at the access gate to unlock this briefing for the current browser session."
       }
       actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <StageBadge
-            label="Demo ACL (sessionStorage)"
-            tone="warning"
-          />
-          <StageBadge
-            label={unlocked ? "Unlocked this session" : published ? "Locked" : "Gate not published"}
-            tone={unlocked ? "success" : published ? "warning" : "error"}
-          />
-        </div>
+        <StageBadge
+          label={unlocked ? "Unlocked this session" : published ? "Locked" : "Gate not published"}
+          tone={unlocked ? "success" : published ? "warning" : "error"}
+        />
       }
       maxWidth="4xl"
     >
-      <p className="mb-6 max-w-3xl border border-amber-300/20 bg-amber-300/[0.04] px-4 py-3 text-xs leading-5 text-amber-100/90">
-        <strong className="font-semibold text-amber-50">Demo access control:</strong> vault unlock is a browser
-        session flag after a confirmed on-chain proof—not a second cryptographic gate. Anyone who can write
-        sessionStorage can forge this UI state. On-chain truth is the nullifier-backed <code className="font-mono">verify_access</code> proof.
-      </p>
       <Link
         href={gateUrl(gate)}
         className="mb-8 inline-flex items-center gap-2 text-sm text-white/55 transition-colors hover:text-accent-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
