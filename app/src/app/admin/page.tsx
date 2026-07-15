@@ -491,7 +491,7 @@ export default function AdminPage() {
               <button
                 type="submit"
                 disabled={deployBusy}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-3 bg-white px-5 text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-3 bg-white px-5 text-sm font-bold uppercase tracking-[0.12em] text-surface transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 Save gate configuration
               </button>
