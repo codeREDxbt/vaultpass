@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+/*
+  VaultPass visual system — aligned with Midnight Brand Hub
+  https://midnight.network/brand-hub
+  Core: Midnight Black + White, accent Blue #0000FE
+  Type: Outfit (accessibility-focused, as specified by Midnight)
+*/
+
+@theme {
+  /* Surfaces */
+  --color-surface: #0a0a0a;
+  --color-surface-raised: #111111;
+  --color-on-surface: #ffffff;
+  --color-background: #0a0a0a;
+
+  /* Midnight Blue scale (accent) — brand primary #0000FE */
+  --color-accent: #0000fe;
+  --color-accent-hover: #1a1aff;
+  --color-accent-pressed: #0000d4;
+  --color-accent-soft: #4d4dff;
+  --color-accent-muted: #8b8bff;
+  --color-accent-faint: #c4c4ff;
+  --color-accent-dim: #0a0a3a;
+
+  /* Map former emerald utilities → Midnight blue family (site-wide rebrand) */
+  --color-emerald-50: #ececff;
+  --color-emerald-100: #d8d8ff;
+  --color-emerald-200: #b0b0ff;
+  --color-emerald-300: #7a7aff;
+  --color-emerald-400: #3d3dff;
+  --color-emerald-500: #0000fe;
+  --color-emerald-600: #0000d4;
+  --color-emerald-700: #0000a8;
+  --color-emerald-800: #00007a;
+  --color-emerald-900: #00004d;
+
+  /* Semantic status (non-brand, for errors/warnings) */
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-red-100: #fee2e2;
+  --color-red-200: #fecaca;
+  --color-red-300: #fca5a5;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+
+  --color-slate-400: #94a3b8;
+  --color-slate-600: #475569;
+
+  /* Mono fallback stack (next/font also sets --font-mono on <html>) */
+  --font-mono-stack: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+  /* Geometry — sharp, institutional (Midnight-like) */
+  --radius-DEFAULT: 0;
+  --radius-lg: 0.125rem;
+  --radius-xl: 0.25rem;
+  --radius-full: 9999px;
+}
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --midnight-black: #0a0a0a;
+  --midnight-blue: #0000fe;
+  --midnight-white: #ffffff;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  /* Font family comes from next/font className on body — do not override with a bare "Outfit" name. */
+  letter-spacing: 0;
+  word-spacing: 0.02em;
+  font-kerning: normal;
+  font-feature-settings: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+p,
+li,
+label,
+span,
+button,
+input,
+textarea,
+a {
+  letter-spacing: 0;
+  word-spacing: 0.02em;
+}
+
+/* Headlines only — slight tracking, never negative enough to eat word gaps */
+h1,
+h2,
+h3,
+.font-display {
+  letter-spacing: -0.015em;
+  word-spacing: 0.02em;
+}
+
+.font-mono,
+code {
+  font-family: var(--font-mono), var(--font-mono-stack);
+  letter-spacing: 0;
+  word-spacing: normal;
+}
+
+/* Clean dividers — high-contrast black/white language */
+* {
+  border-color: color-mix(in srgb, white 12%, transparent);
+}
+
+/* Selection uses brand blue */
+::selection {
+  background: #0000fe;
+  color: #ffffff;
+}
+
+:focus-visible {
+  outline: 2px solid #0000fe;
+  outline-offset: 3px;
+}
+
+/* Display type: inherit Outfit from body; only adjust weight/tracking */
+.font-display {
+  letter-spacing: -0.015em;
+}
+
+/* Subtle grid / depth without green neon */
+.midnight-panel {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, white 3%, transparent) 0%,
+    transparent 100%
+  );
+  border: 1px solid color-mix(in srgb, white 12%, transparent);
+}
+
+.midnight-glow {
+  box-shadow: 0 0 0 1px color-mix(in srgb, #0000fe 35%, transparent),
+    0 0 40px color-mix(in srgb, #0000fe 12%, transparent);
+}
+
+/* Primary CTA — solid brand blue, white label */
+.btn-midnight {
+  background-color: #0000fe;
+  color: #ffffff;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+
+.btn-midnight:hover {
+  background-color: #1a1aff;
+}
+
+.btn-midnight:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Secondary outline on black */
+.btn-midnight-outline {
+  border: 1px solid color-mix(in srgb, #0000fe 55%, transparent);
+  color: #b0b0ff;
+  background: transparent;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.btn-midnight-outline:hover {
+  border-color: #0000fe;
+  background: color-mix(in srgb, #0000fe 10%, transparent);
+  color: #ffffff;
+}
+
+@keyframes nav-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.nav-progress-bar {
+  animation: nav-progress 1.1s ease-in-out infinite;
+  background-color: #0000fe;
+}
+
+/* Numbered step labels like midnight.network (01, 02…) */
+.midnight-step {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, #0000fe 80%, white 20%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
