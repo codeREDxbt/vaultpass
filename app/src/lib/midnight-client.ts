@@ -1261,8 +1261,7 @@ export class VaultPassClient {
       const contractMatch = rest.match(/^contractId=([0-9a-f]+):(.*)/i);
       if (contractMatch) {
         const [, addr, detail] = contractMatch;
-        const shortAddr = `${addr.slice(0, 8)}…${addr.slice(-6)}`;
-        return `Lace threw an error after you signed, but the transaction may still have reached the Midnight node. Contract address: ${shortAddr}. Use "Check deployment confirmation" below to see if it landed on-chain. Error detail: ${detail}`;
+        return `Lace threw an error after you signed, but the transaction may still have reached the Midnight node. Use "Check deployment confirmation" below — or paste this address into "Restore published gate": ${addr}. Error detail: ${detail}`;
       }
       return `Lace rejected the sealed deployment transaction: ${rest}`;
     }
