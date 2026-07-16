@@ -1,94 +1,114 @@
-# VaultPass
+<div align="center">
+  <img src="app/public/logo.svg" alt="Vault Pass Logo" width="80" height="80" />
+  <h1 align="center">Vault Pass</h1>
+  <p align="center">
+    <strong>Your Identity. Under Lock and Key.</strong>
+    <br />
+    A privacy-preserving zero-knowledge gateway built for the Midnight Moonshots Level 3 track.
+  </p>
 
-**Your Identity. Under Lock and Key.**
+  <p align="center">
+    <a href="https://github.com/codeREDxbt/vaultpass/actions/workflows/ci.yml">
+      <img src="https://github.com/codeREDxbt/vaultpass/actions/workflows/ci.yml/badge.svg" alt="CI" />
+    </a>
+    <a href="https://nextjs.org/">
+      <img src="https://img.shields.io/badge/Next.js-15-black?logo=next.js" alt="Next.js" />
+    </a>
+    <a href="https://midnight.network/">
+      <img src="https://img.shields.io/badge/Midnight-Network-blueviolet" alt="Midnight Network" />
+    </a>
+  </p>
+</div>
 
-VaultPass is a privacy-preserving access-gating dApp for the **Midnight Moonshots Level 3** track. Operators deploy a Compact gate with a Merkle allowlist and nullifiers; members prove membership without revealing the raw credential. The app covers full Admin and Member Preview flows: deploy, enroll, prove, vault briefing, restore-from-contract, explorer links, and disconnect.
-
-[![CI](https://github.com/codeREDxbt/vaultpass/actions/workflows/ci.yml/badge.svg)](https://github.com/codeREDxbt/vaultpass/actions/workflows/ci.yml)
+<br />
 
 | Resource | Link |
 |----------|------|
-| **Repository** | https://github.com/codeREDxbt/vaultpass |
-| **Live demo** | _Deploy after first push — see [Deployment](#deployment-notes)_ |
-| **Demo video** | _Record 60–90s after live URL is live — see [Demo](#demo)_ |
+| **Live demo** | _Deploy after first push to Vercel_ |
+| **Demo video** | _Record 60–90s after live URL is live_ |
 | **Trust model** | [TRUST_MODEL.md](./TRUST_MODEL.md) |
 
-## Why VaultPass exists
+---
 
-Web3 communities, private events, and token-gated tools often force users to doxx identity or expose history just to prove access. VaultPass is a zero-knowledge gateway on Midnight Preview: the user proves allowlist membership, the app unlocks a demo vault for the browser session, and the chain records a nullifier-backed success—not the secret.
+## 🔐 Why Vault Pass?
 
-## Features
+Web3 communities, private events, and token-gated tools often force users to doxx their identity or expose their transaction history just to prove access. 
 
-- **Compact gate:** `valid_credentials` Merkle tree + `used_nullifiers` set (`contracts/src/vault_pass.compact`).
-- **Operator console:** deploy, enroll credential hashes, copy member secret, share `?contract=` link, restore published gate from address.
-- **Member gate:** connect wallet → prove → vault destination with explorer links.
-- **Session UX:** vault unlock via `sessionStorage` after a confirmed proof (**demo ACL**, not a second cryptographic gate).
-- **Midnight-aligned UI:** WalletSessionBar, transaction stages, Preview explorer deep links.
+**Vault Pass** solves this. Built on the Midnight Preview network, it acts as a zero-knowledge gateway. Users can prove allowlist membership and unlock a demo vault for their browser session without revealing their raw credential. The chain only records a nullifier-backed success—never the secret.
 
-## Stack
+## ✨ Features
 
-- **Smart contract:** Compact (`vault_pass.compact`) with prebuilt managed artifacts under `contracts/src/managed` and app static ZK assets.
-- **Frontend:** Next.js (App Router) + TypeScript + Tailwind CSS.
-- **Wallet / chain:** Midnight dApp connector (Lace / 1AM), low-level prove → balance → submit path in `app/src/lib/midnight-client.ts`.
-- **Tests:** Jest **behavioral mocks** of access rules (not Compact circuit tests)—see below.
-- **CI:** GitHub Actions (`npm ci` → `npm test` → `npm run build`).
+- **Compact Gate (ZK Smart Contract)**: Utilizes a `valid_credentials` Merkle tree + `used_nullifiers` set (`contracts/src/vault_pass.compact`).
+- **Operator Admin Console**: Deploy gates, enroll credential hashes, securely copy member secrets, generate `?contract=` shareable links, and restore published gates.
+- **Member Flow**: Connect wallet ➔ Generate ZK Proof ➔ Unlock Vault ➔ View explorer links.
+- **Session UX**: Once the proof is confirmed, the vault unlocks securely via `sessionStorage` for the duration of the browser session.
+- **Midnight-Aligned UI**: Features the WalletSessionBar, real-time transaction stage feedback, and deep links into the Midnight Preview Explorer.
 
-## Architecture
+## 🛠️ Architecture & Stack
 
-Monorepo (npm workspaces):
+### Stack
+- **Smart Contract**: Midnight Compact (`vault_pass.compact`)
+- **Frontend**: Next.js (App Router), TypeScript, Tailwind CSS
+- **Wallet/Chain**: Midnight dApp connector (Lace / 1AM), low-level prove & submit path in `app/src/lib/midnight-client.ts`
 
+### Monorepo Structure (npm workspaces)
 | Path | Role |
 |------|------|
 | `contracts/` | Compact source, managed compiler output, Jest behavioral tests |
 | `app/` | Next.js UI + Midnight client, gate store, session unlock |
-| `.github/workflows/ci.yml` | CI pipeline |
 
-Circuits:
+### Zero-Knowledge Circuits
+1. **`add_valid_credential`** — Admin-only insertion of a credential leaf hash into the Merkle tree.
+2. **`verify_access`** — Proves the secret exists as a leaf in the tree, derives a nullifier, rejects replays, and inserts the nullifier into the set.
 
-1. **`add_valid_credential`** — admin-only insert of a credential leaf hash into the Merkle tree.
-2. **`verify_access`** — prove secret → leaf in tree; derive nullifier; reject replay; insert nullifier.
+---
 
-## Setup
+## 🚀 Getting Started (Local Development)
 
 ```bash
+# Clone the repository
 git clone https://github.com/codeREDxbt/vaultpass.git
 cd vaultpass
+
+# Install dependencies
 npm install
+
+# Start the frontend
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-**Requirements for Preview demo:** Midnight Lace or 1AM on **Preview**, browser extension installed, DUST/fee balance as required by the network.
+> **Note:** To run the Preview demo, you must have the Midnight Lace or 1AM browser extension installed, be connected to the **Preview network**, and have sufficient DUST/fee balance.
 
-## Test instructions
+---
+
+## 🧪 Testing
 
 ```bash
+# Run Jest behavioral mocks
 npm test
 ```
+The tests simulate the allowlist, nullifier, and admin rules using in-memory structures (they do not generate real ZK proofs during testing). See comments in `contracts/tests/vault_pass.test.ts` and [TRUST_MODEL.md](./TRUST_MODEL.md) for details.
 
-Runs Jest in `contracts/`. These tests **simulate** allowlist + nullifier + admin rules with in-memory structures. They **do not** compile Compact, run testkit, or generate ZK proofs. See comments at the top of `contracts/tests/vault_pass.test.ts` and [TRUST_MODEL.md](./TRUST_MODEL.md).
+---
 
-To recompile Compact when the toolchain is available:
-
-```bash
-npm run compile --workspace=contracts
-```
-
-## Deployment notes
+## 🌐 Deployment & Submission
 
 ### Frontend (Vercel)
+Vault Pass is a static Next.js frontend and requires **zero environment variables** for production.
 
-1. Push this repo to GitHub (already targeted as `codeREDxbt/vaultpass`).
-2. Import in Vercel with **root directory = repository root** (uses `vercel.json`: install at root, build `app` workspace).
-3. Framework: Next.js. No secrets required for a public Preview demo UI.
-4. Paste the production URL into the [Demo](#demo) section of this README.
+1. Push your repository to GitHub.
+2. Import the project into Vercel. Ensure the **Root Directory** is set to the repository root. Vercel will automatically detect the Next.js framework in the `app` workspace.
+3. Deploy! There are no secrets or `.env` files to configure.
+4. Add the resulting production URL to the **Live demo** section above.
 
-### Contract
+### Smart Contract
+The ZK contracts are **deployed directly from the Admin console** on the Preview network by the operator's wallet, not via CI. Every operator deployment creates a new contract address.
 
-Gates are **deployed from the Admin console** on Preview by the operator wallet—not from CI. Each operator deploy creates a new contract address; member links embed `?contract=…`.
+---
 
-## On-chain verification (explorer)
+## 🔍 On-chain Verification
 
 | Resource | Pattern |
 |----------|---------|
@@ -96,67 +116,27 @@ Gates are **deployed from the Admin console** on Preview by the operator wallet�
 | Transaction | `https://preview.midnightexplorer.com/transactions/0x…` |
 | Contract | `https://preview.midnightexplorer.com/contracts/0x…` |
 
-In the app, use **View on explorer** next to deploy, enrollment, and access proof IDs (Admin, Gate, Vault).
+*In the app, you can use the **View on explorer** button next to deploy, enrollment, and access proof IDs.*
 
-## Privacy & trust model (summary)
+---
 
-**Observer can learn**
+## 🎬 How to Demo
 
-- That an access attempt occurred and whether it succeeded.
-- Public ledger data: admin key bytes, Merkle structure evolution, used nullifiers, contract address.
+### Operator Path
+1. Open `/admin` (via the footer).
+2. Connect your administrator wallet, give the gate a name/description, and **Deploy**.
+3. Wait until the gate status is **Published**.
+4. Generate a credential, enroll its hash, and copy the raw secret privately.
+5. Share the **member gate link** (contains the embedded `?contract=` parameter).
 
-**Observer cannot learn (circuit design)**
+### Member Path
+1. Open the shared link (`/gate?…`).
+2. Connect a wallet (on the Preview network).
+3. Paste the raw secret and click **Generate Proof**.
+4. Access the protected vault!
 
-- The member’s raw credential secret.
-- Off-chain identity of the prover without external correlation.
+---
 
-**Demo limitations (read fully: [TRUST_MODEL.md](./TRUST_MODEL.md))**
-
-- Admin check uses a **witness** `get_caller()` compared to stored admin—honest wallet path only for the demo.
-- Vault unlock is **sessionStorage** UX after a confirmed proof; forgeable in the browser.
-- Operator keys / gate metadata are local; use **Restore published gate** + share links for recovery.
-
-## How to demo (Preview)
-
-### Operator path
-
-1. Open `/admin` (footer → Operators).
-2. Connect the administrator wallet → save gate name/description → deploy.
-3. Wait until the gate is **Published** (indexer lag is normal).
-4. Generate a credential → enroll its hash → copy the raw secret privately.
-5. Copy the **member gate link** (`?contract=` embedded).
-
-### Member path
-
-1. Open the share link (`/gate?…`).
-2. Connect a wallet on Preview → paste the raw secret → generate proof.
-3. Open the protected vault for this browser session.
-4. Optionally open the proof transaction on Midnight Explorer.
-
-### Restore
-
-If browser storage is cleared: **Admin → Restore published gate** with the contract address. The on-chain gate remains; signing keys for some ops may still be lost (see trust model).
-
-## Demo
-
-- **Live demo:** _pending first Vercel production deploy_
-- **Demo video (60–90s script):** problem → admin enroll → member prove → vault + explorer
-
-Suggested video beats:
-
-1. **0–15s** — Landing: private allowlist without doxxing.
-2. **15–40s** — Admin deploy + enroll + copy secret + share link.
-3. **40–70s** — Member prove + vault unlock + explorer link.
-4. **70–90s** — One line on nullifiers / what observers cannot see.
-
-### Screenshots
-
-Add 2–3 PNGs under `docs/screenshots/` after UI freeze:
-
-1. Landing / judge script  
-2. Admin published + enroll  
-3. Member proof success + vault  
-
-## License
-
-Private submission / demo project unless otherwise stated by the author.
+<p align="center">
+  <i>Private submission / demo project unless otherwise stated by the author.</i>
+</p>

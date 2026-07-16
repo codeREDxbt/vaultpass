@@ -44,8 +44,8 @@ export function Navigation() {
       )}
       <div className="mx-auto flex h-20 max-w-screen-2xl items-center justify-between px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
-          <span className="flex h-9 w-9 items-center justify-center bg-accent text-white" aria-hidden="true">
-            <ShieldCheck size={20} strokeWidth={1.7} />
+          <span className="flex h-8 w-8 items-center justify-center text-white" aria-hidden="true">
+            <img src="/logo.svg" alt="Vault Pass Logo" className="h-full w-full" />
           </span>
           <span className="font-display text-lg font-bold tracking-tight text-white">VaultPass</span>
         </Link>

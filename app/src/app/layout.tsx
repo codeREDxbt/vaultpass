@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit, JetBrains_Mono } from "next/font/google";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
+import { Splash } from "@/components/Splash";
 import "./globals.css";
 
 /** Outfit — official Midnight Brand Hub typeface (applied via className so spaces/glyphs load correctly). */
@@ -31,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${jetbrainsMono.variable} h-full antialiased`}>
       <body className={`${outfit.className} flex min-h-full flex-col bg-surface text-on-surface`}>
+        <Splash />
         <Navigation />
         {children}
         <Footer />
