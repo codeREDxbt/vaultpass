@@ -124,7 +124,16 @@ export default function AdminPage() {
     setGate(stored);
     setName(stored.name);
     setDescription(stored.description);
-    setDeploymentStage(stored.status === "published" ? "published" : "configure");
+    // Stale draft = contractId saved but status is draft (failed deploy). Put UI in error state
+    // so the "Reset & redeploy" and "Check deployment confirmation" buttons are immediately visible.
+    if (stored.status === "published" && stored.contractId) {
+      setDeploymentStage("published");
+    } else if (stored.status === "draft" && stored.contractId) {
+      setDeploymentStage("error");
+      setDeploymentMessage("A previous deployment attempt did not complete. Use \"Check deployment confirmation\" or \"Reset & redeploy\" below.");
+    } else {
+      setDeploymentStage("configure");
+    }
     setGateReady(true);
   }, []);
 
@@ -748,6 +757,30 @@ export default function AdminPage() {
                     </form>
                   )}
                 </div>
+              </div>
+
+              {/* Always-visible escape hatch — lets operator nuke a stale gate and start fresh */}
+              <div className="mt-6 border-t border-white/5 pt-6">
+                <p className="text-xs text-white/30">Need to start completely fresh?</p>
+                <button
+                  type="button"
+                  disabled={deployBusy || enrollBusy || restoreBusy}
+                  onClick={() => {
+                    if (!window.confirm("This will clear all local gate data (contract address, name, description). Are you sure?")) return;
+                    const fresh = resetGateToDraft({ ...DEFAULT_GATE });
+                    setGate(fresh);
+                    setName(DEFAULT_GATE.name);
+                    setDescription(DEFAULT_GATE.description);
+                    setDeploymentStage(isAdminConnected ? "connected" : "configure");
+                    setDeploymentMessage("");
+                    setEnrollmentStage("idle");
+                    setEnrollmentMessage("");
+                    setPendingEnrollment(null);
+                  }}
+                  className="mt-2 text-xs text-white/30 underline underline-offset-4 transition-colors hover:text-white/50 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  Clear all gate data and start fresh
+                </button>
               </div>
             </div>
           </section>
