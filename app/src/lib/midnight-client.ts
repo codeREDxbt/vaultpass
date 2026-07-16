@@ -811,27 +811,39 @@ export class VaultPassClient {
       throw new Error(`DEPLOY_BALANCE:dust=${dustStatus}:${detail}`);
     }
 
+    // Derive contractId before submit so we can persist the signing key even on failure.
+    const contractId = toChainContractAddress(String(txData.public.contractAddress));
+    const storedSigningKey = txData.private.signingKey ?? signingKey;
+    const persistKey = async () => {
+      try {
+        providers.privateStateProvider.setContractAddress(contractId);
+        await providers.privateStateProvider.setSigningKey(contractId, storedSigningKey as never);
+        persistSigningKey(contractId, storedSigningKey);
+      } catch {
+        // Signing key persistence is best-effort.
+      }
+    };
+
     let submitted: unknown;
     try {
       if (!this.api?.submitTransaction) throw new Error("Wallet cannot submit a transaction.");
       submitted = await this.api.submitTransaction(balancedHex);
     } catch (error) {
-      throw new Error(`DEPLOY_SUBMIT:${getErrorMessage(error)}`);
+      // Even if submit throws, the tx may have reached the node (Lace sometimes fires the error
+      // callback after broadcasting). Persist the signing key so the operator can use
+      // "Check deployment confirmation" to recover without re-deploying.
+      await persistKey();
+      const raw = error as Record<string, unknown> | null;
+      const code = typeof raw?.code === "string" ? raw.code : typeof raw?.error === "object" && raw?.error !== null ? (raw.error as Record<string,unknown>).code : "";
+      const detail = [code, getErrorMessage(error)].filter(Boolean).join(" | ");
+      throw new Error(`DEPLOY_SUBMIT:contractId=${contractId}:${detail}`);
     }
+    await persistKey();
     const txId = typeof submitted === "string"
       ? submitted
       : typeof submitted === "object" && submitted !== null && typeof (submitted as { transactionId?: unknown }).transactionId === "string"
         ? (submitted as { transactionId: string }).transactionId
         : null;
-    const contractId = toChainContractAddress(String(txData.public.contractAddress));
-    const storedSigningKey = txData.private.signingKey ?? signingKey;
-    try {
-      providers.privateStateProvider.setContractAddress(contractId);
-      await providers.privateStateProvider.setSigningKey(contractId, storedSigningKey as never);
-      persistSigningKey(contractId, storedSigningKey);
-    } catch {
-      // Signing key persistence is best-effort; circuit calls do not require maintenance authority.
-    }
     return { contractId, txId };
   }
 
@@ -1244,7 +1256,16 @@ export class VaultPassClient {
     if (message.startsWith("DEPLOY_BALANCE:")) return `Preview transaction balancing failed. Check Lace permissions and Preview resources: ${message.slice("DEPLOY_BALANCE:".length)}`;
     if (message.startsWith("DEPLOY_CONFIRM:")) return `The deployment was submitted, but the Preview indexer has not confirmed it yet. Keep the wallet on Preview and retry the confirmation check. (${message.slice("DEPLOY_CONFIRM:".length)})`;
     if (message.startsWith("DUST_EMPTY:")) return `Lace reports zero available Preview DUST, although its DUST capacity is ${message.slice("DUST_EMPTY:".length)}. Wait for the wallet to finish syncing/refilling, then reconnect Lace and retry.`;
-    if (message.startsWith("DEPLOY_SUBMIT:")) return `Lace rejected the sealed deployment transaction: ${message.slice("DEPLOY_SUBMIT:".length)}`;
+    if (message.startsWith("DEPLOY_SUBMIT:")) {
+      const rest = message.slice("DEPLOY_SUBMIT:".length);
+      const contractMatch = rest.match(/^contractId=([0-9a-f]+):(.*)/i);
+      if (contractMatch) {
+        const [, addr, detail] = contractMatch;
+        const shortAddr = `${addr.slice(0, 8)}…${addr.slice(-6)}`;
+        return `Lace threw an error after you signed, but the transaction may still have reached the Midnight node. Contract address: ${shortAddr}. Use "Check deployment confirmation" below to see if it landed on-chain. Error detail: ${detail}`;
+      }
+      return `Lace rejected the sealed deployment transaction: ${rest}`;
+    }
     if (lower.includes("prover") || lower.includes("zkir") || lower.includes("verifier") || lower.includes("proof")) return `The Preview proof setup could not be loaded: ${message}`;
     if (lower.includes("dust") || lower.includes("balance") || lower.includes("fee")) return "The wallet could not balance this deployment. Make sure the wallet is funded with the required Preview resources, then try again.";
     if (lower.includes("network") || lower.includes("unsupported")) return `The deployment cannot run on this wallet/network: ${message}`;

@@ -221,6 +221,24 @@ export default function AdminPage() {
       setDeploymentStage("published");
       setDeploymentMessage("The Preview indexer confirmed the contract deployment.");
     } catch (error) {
+      // If Lace threw after signing, the tx may have broadcast. Extract the contractId
+      // from the error so the operator can use "Check deployment confirmation" immediately.
+      const rawMsg = error instanceof Error ? error.message : "";
+      const submitMatch = rawMsg.match(/^DEPLOY_SUBMIT:contractId=([0-9a-f]+):/i);
+      if (submitMatch) {
+        const recoveredId = formatContractId(submitMatch[1]);
+        const draft = {
+          ...gate,
+          name: name.trim(),
+          description: description.trim(),
+          contractId: recoveredId,
+          deploymentTxId: null,
+          contractVersion: "credential-hash-v2" as const,
+          status: "draft" as const,
+        };
+        saveGate(draft);
+        setGate(draft);
+      }
       setDeploymentStage("error");
       setDeploymentMessage(VaultPassClient.messageFor(error));
     }
