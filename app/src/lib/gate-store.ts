@@ -236,3 +236,15 @@ export function shorten(value: string | null, visible = 10): string {
   if (value.length <= visible * 2) return value;
   return `${value.slice(0, visible)}...${value.slice(-visible)}`;
 }
+
+/** Clear a failed draft gate so the operator can start a clean redeployment. */
+export function resetGateToDraft(gate: GateRecord): GateRecord {
+  const reset: GateRecord = {
+    ...gate,
+    contractId: null,
+    deploymentTxId: null,
+    status: "draft",
+  };
+  saveGate(reset);
+  return reset;
+}

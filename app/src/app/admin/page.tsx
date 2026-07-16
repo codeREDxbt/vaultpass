@@ -23,6 +23,7 @@ import {
   gateUrl,
   getGate,
   isValidContractId,
+  resetGateToDraft,
   restorePublishedGate,
   saveGate,
   type GateRecord,
@@ -608,6 +609,21 @@ export default function AdminPage() {
                     className="inline-flex min-h-12 w-full items-center justify-center gap-3 border border-amber-300/50 px-5 text-sm font-bold uppercase tracking-[0.12em] text-amber-100 transition-colors hover:bg-amber-300/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
                   >
                     <LoaderCircle size={17} aria-hidden="true" /> Check deployment confirmation
+                  </button>
+                )}
+                {deploymentStage === "error" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const reset = resetGateToDraft(gate);
+                      setGate(reset);
+                      setDeploymentStage(isAdminConnected ? "connected" : "configure");
+                      setDeploymentMessage("Gate reset. You can now redeploy cleanly.");
+                    }}
+                    disabled={deployBusy}
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 border border-white/10 px-4 text-xs font-semibold text-white/40 transition-colors hover:border-white/20 hover:text-white/60 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    Reset &amp; redeploy from scratch
                   </button>
                 )}
                 {published && (
