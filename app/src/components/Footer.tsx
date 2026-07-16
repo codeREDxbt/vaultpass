@@ -43,10 +43,15 @@ export function Footer() {
           </div>
         </div>
       </div>
-      <p className="mx-auto mt-8 max-w-screen-xl text-[11px] leading-5 text-white/30">
-        Preview demo: vault session unlock is browser-local UX after a confirmed proof. On-chain truth is the proof
-        transaction—not this page alone.
-      </p>
+      <div className="mx-auto mt-8 flex max-w-screen-xl flex-col gap-4 border-t border-white/5 pt-6 text-[11px] leading-5 text-white/30 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-2xl">
+          Preview demo: vault session unlock is browser-local UX after a confirmed proof. On-chain truth is the proof
+          transaction—not this page alone.
+        </p>
+        <p className="font-mono text-[10px] tracking-wider text-white/40">
+          Made by Vinayak (codeREDxbt)
+        </p>
+      </div>
     </footer>
   );
 }
