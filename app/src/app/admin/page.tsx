@@ -93,6 +93,7 @@ export default function AdminPage() {
   const getClient = () => clientRef.current ?? (clientRef.current = new VaultPassClient());
   // Hydration-safe: start from DEFAULT_GATE, hydrate from localStorage after mount.
   const [gate, setGate] = useState<GateRecord>(DEFAULT_GATE);
+  const laceSyncHandled = useRef(false);
   const [gateReady, setGateReady] = useState(false);
   const [name, setName] = useState(DEFAULT_GATE.name);
   const [description, setDescription] = useState(DEFAULT_GATE.description);
@@ -235,11 +236,17 @@ export default function AdminPage() {
       
       // Handle the known Lace "first try" sync bug where it throws a generic "Error".
       // Lace uses the first attempt to sync its stale UTXOs, then rejects the tx internally.
-      if (rawMsg.match(/^DEPLOY_SUBMIT:contractId=[0-9a-f]+:\s*Error$/i)) {
-        const fresh = resetGateToDraft({ ...DEFAULT_GATE });
-        setGate(fresh);
-        setName(DEFAULT_GATE.name);
-        setDescription(DEFAULT_GATE.description);
+      // We only do this once. If it happens again, it's a real persistent error.
+      if (!laceSyncHandled.current && rawMsg.match(/^DEPLOY_SUBMIT:contractId=[0-9a-f]+:\s*Error$/i)) {
+        laceSyncHandled.current = true;
+        const draft = {
+          ...gate,
+          contractId: null,
+          deploymentTxId: null,
+          status: "draft" as const,
+        };
+        saveGate(draft);
+        setGate(draft);
         setDeploymentStage(isAdminConnected ? "connected" : "configure");
         setDeploymentMessage("Lace wallet just synced its network state. Please click Deploy one more time to complete the transaction.");
         return;
