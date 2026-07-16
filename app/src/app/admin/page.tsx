@@ -578,13 +578,22 @@ export default function AdminPage() {
                 </div>
               )}
               <div className="mt-6 space-y-3">
-                {!isAdminConnected && (
+                {!isAdminConnected && !published && (
                   <button
                     type="button"
                     onClick={() => setWalletModalOpen(true)}
                     className="inline-flex min-h-12 w-full items-center justify-center gap-3 bg-accent px-5 text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   >
                     <WalletCards size={17} aria-hidden="true" /> Choose administrator wallet
+                  </button>
+                )}
+                {!isAdminConnected && published && (
+                  <button
+                    type="button"
+                    onClick={() => setWalletModalOpen(true)}
+                    className="inline-flex items-center gap-2 text-xs font-semibold text-white/40 underline underline-offset-4 transition-colors hover:text-accent-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <WalletCards size={14} aria-hidden="true" /> Reconnect wallet to issue credentials
                   </button>
                 )}
                 {isAdminConnected && !published && deploymentStage !== "deploying" && deploymentStage !== "confirming" && (
