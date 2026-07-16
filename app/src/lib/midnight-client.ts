@@ -869,7 +869,10 @@ export class VaultPassClient {
           if (!response.ok) throw new Error(`Indexer HTTP ${response.status}`);
           const payload = await response.json() as { data?: { contractAction?: { state?: string } | null }; errors?: Array<{ message?: string }> };
           if (payload.errors?.length) throw new Error(payload.errors.map((error) => error.message ?? "Indexer query failed").join("; "));
-          if (payload.data?.contractAction?.state) return;
+          // contractAction === null means the contract does not exist at this address.
+          // Only treat as confirmed when contractAction is non-null AND has a state value.
+          const action = payload.data?.contractAction;
+          if (action !== null && action !== undefined && action.state) return;
         } catch (error) {
           lastError = getErrorMessage(error);
         }
