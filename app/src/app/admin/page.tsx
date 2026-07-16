@@ -247,9 +247,11 @@ export default function AdminPage() {
   const confirmDeployment = async () => {
     if (!gate.contractId) return;
     setDeploymentStage("confirming");
-    setDeploymentMessage("");
+    setDeploymentMessage("Polling the Midnight Preview indexer… (0s elapsed)");
     try {
-      await getClient().waitForContractDeployment(gate.contractId);
+      await getClient().waitForContractDeployment(gate.contractId, 600000, (elapsed) => {
+        setDeploymentMessage(`Polling the Midnight Preview indexer… (${elapsed}s elapsed — indexer can lag up to 5 min)`);
+      });
       const confirmed = { ...gate, status: "published" as const };
       saveGate(confirmed);
       setGate(confirmed);

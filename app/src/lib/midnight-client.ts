@@ -847,13 +847,15 @@ export class VaultPassClient {
     return { contractId, txId };
   }
 
-  async waitForContractDeployment(contractId: string, timeoutMs = 120000): Promise<void> {
+  async waitForContractDeployment(contractId: string, timeoutMs = 600000, onProgress?: (elapsed: number) => void): Promise<void> {
     if (!this.session) throw new Error("WALLET_NOT_CONNECTED");
     const deadline = Date.now() + timeoutMs;
+    const startedAt = Date.now();
     let lastError = "";
     const addresses = contractAddressCandidates(contractId);
 
     while (Date.now() < deadline) {
+      onProgress?.(Math.floor((Date.now() - startedAt) / 1000));
       for (const address of addresses) {
         try {
           const response = await fetch(this.session.indexerUrl, {
@@ -872,7 +874,7 @@ export class VaultPassClient {
           lastError = getErrorMessage(error);
         }
       }
-      await new Promise((resolve) => window.setTimeout(resolve, 2000));
+      await new Promise((resolve) => window.setTimeout(resolve, 5000));
     }
 
     throw new Error(`DEPLOY_CONFIRM:${lastError || "The contract is not indexed yet."}`);
