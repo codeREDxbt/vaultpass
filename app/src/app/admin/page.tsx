@@ -231,9 +231,22 @@ export default function AdminPage() {
       setDeploymentStage("published");
       setDeploymentMessage("The Preview indexer confirmed the contract deployment.");
     } catch (error) {
-      // If Lace threw after signing, the tx may have broadcast. Extract the contractId
-      // from the error so the operator can use "Check deployment confirmation" immediately.
       const rawMsg = error instanceof Error ? error.message : "";
+      
+      // Handle the known Lace "first try" sync bug where it throws a generic "Error".
+      // Lace uses the first attempt to sync its stale UTXOs, then rejects the tx internally.
+      if (rawMsg.match(/^DEPLOY_SUBMIT:contractId=[0-9a-f]+:\s*Error$/i)) {
+        const fresh = resetGateToDraft({ ...DEFAULT_GATE });
+        setGate(fresh);
+        setName(DEFAULT_GATE.name);
+        setDescription(DEFAULT_GATE.description);
+        setDeploymentStage(isAdminConnected ? "connected" : "configure");
+        setDeploymentMessage("Lace wallet just synced its network state. Please click Deploy one more time to complete the transaction.");
+        return;
+      }
+
+      // If Lace threw a different error after signing, the tx may have broadcast. Extract the contractId
+      // from the error so the operator can use "Check deployment confirmation" immediately.
       const submitMatch = rawMsg.match(/^DEPLOY_SUBMIT:contractId=([0-9a-f]+):/i);
       if (submitMatch) {
         const recoveredId = formatContractId(submitMatch[1]);
