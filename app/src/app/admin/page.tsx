@@ -237,7 +237,12 @@ export default function AdminPage() {
       // Handle the known Lace "first try" sync bug where it throws a generic "Error".
       // Lace uses the first attempt to sync its stale UTXOs, then rejects the tx internally.
       // We only do this once. If it happens again, it's a real persistent error.
-      if (!laceSyncHandled.current && rawMsg.match(/^DEPLOY_SUBMIT:contractId=[0-9a-f]+:\s*Error$/i)) {
+      // Do not apply this to 1AM — a bare "Error" there is a real failure.
+      if (
+        getClient().isLaceWallet() &&
+        !laceSyncHandled.current &&
+        rawMsg.match(/^DEPLOY_SUBMIT:contractId=[0-9a-f]+:\s*Error$/i)
+      ) {
         laceSyncHandled.current = true;
         const draft = {
           ...gate,
@@ -252,22 +257,42 @@ export default function AdminPage() {
         return;
       }
 
-      // If Lace threw a different error after signing, the tx may have broadcast. Extract the contractId
-      // from the error so the operator can use "Check deployment confirmation" immediately.
-      const submitMatch = rawMsg.match(/^DEPLOY_SUBMIT:contractId=([0-9a-f]+):/i);
+      // If the wallet threw after signing, the tx may have broadcast (Lace). Extract the
+      // contractId so "Check deployment confirmation" works. Skip that for hard rejects
+      // (temporary ban / no tx id) — those never land and should not enter a dead poll loop.
+      const submitMatch = rawMsg.match(/^DEPLOY_SUBMIT:contractId=([0-9a-f]+):(.*)/i);
       if (submitMatch) {
         const recoveredId = formatContractId(submitMatch[1]);
-        const draft = {
-          ...gate,
-          name: name.trim(),
-          description: description.trim(),
-          contractId: recoveredId,
-          deploymentTxId: null,
-          contractVersion: "credential-hash-v2" as const,
-          status: "draft" as const,
-        };
-        saveGate(draft);
-        setGate(draft);
+        const submitDetail = submitMatch[2].toLowerCase();
+        const hardReject =
+          submitDetail.includes("temporarily banned") ||
+          submitDetail.includes("temp banned") ||
+          submitDetail.includes("no transaction id") ||
+          submitDetail.includes("history is empty");
+        if (hardReject) {
+          const draft = {
+            ...gate,
+            name: name.trim(),
+            description: description.trim(),
+            contractId: null,
+            deploymentTxId: null,
+            status: "draft" as const,
+          };
+          saveGate(draft);
+          setGate(draft);
+        } else {
+          const draft = {
+            ...gate,
+            name: name.trim(),
+            description: description.trim(),
+            contractId: recoveredId,
+            deploymentTxId: null,
+            contractVersion: "credential-hash-v2" as const,
+            status: "draft" as const,
+          };
+          saveGate(draft);
+          setGate(draft);
+        }
       }
       setDeploymentStage("error");
       setDeploymentMessage(VaultPassClient.messageFor(error));

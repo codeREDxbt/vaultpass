@@ -643,9 +643,8 @@ export class VaultPassClient {
         } catch (error) {
           throw new Error(`Failed to serialize proven transaction before balancing: ${getErrorMessage(error)}`);
         }
-        const result = await this.api.balanceUnsealedTransaction(uint8ArrayToHex(serialized), { payFees: true });
-        if (!result?.tx || typeof result.tx !== "string") throw new Error("Wallet returned no balanced transaction.");
-        return wrapBalancedHex(result.tx);
+        const balancedHex = await this.balanceUnsealedHex(uint8ArrayToHex(serialized));
+        return wrapBalancedHex(balancedHex);
       },
     };
     const midnightProvider = {
@@ -664,14 +663,23 @@ export class VaultPassClient {
         if (typeof result === "string" && result) return result;
         if (typeof result === "object" && result !== null) {
           const id = (result as { transactionId?: unknown; id?: unknown }).transactionId ?? (result as { id?: unknown }).id;
-          if (typeof id === "string") return id;
+          if (typeof id === "string" && id) return id;
         }
         const identifiers = (tx as SerializedTransaction & { identifiers?: () => unknown[] }).identifiers;
         if (typeof identifiers === "function") {
           const identifier = identifiers()[0];
-          if (identifier !== undefined) return String(identifier);
+          if (identifier !== undefined && identifier !== null && String(identifier).length > 0) {
+            return String(identifier);
+          }
         }
-        // Last resort: watchable pseudo-id from the sealed bytes.
+        // 1AM may resolve with void even when the popup showed a failure. Prefer an explicit
+        // error over a fake pseudo-id so the UI does not enter a 10-minute dead poll.
+        if (this.isOneAmWallet()) {
+          throw new Error(
+            "Wallet submit returned no transaction id. If 1AM briefly showed a failure and history is empty, the tx did not reach the chain — wait, reset, and deploy once.",
+          );
+        }
+        // Last resort for Lace: watchable pseudo-id from the sealed bytes.
         return uint8ArrayToHex(serialized).slice(0, 64);
       },
     };
@@ -803,9 +811,7 @@ export class VaultPassClient {
           dustStatus = "unavailable";
         }
       }
-      const balanced = await this.api.balanceUnsealedTransaction(uint8ArrayToHex(provenTx.serialize()), { payFees: true });
-      if (!balanced.tx) throw new Error("Wallet returned no balanced transaction.");
-      balancedHex = balanced.tx;
+      balancedHex = await this.balanceUnsealedHex(uint8ArrayToHex(provenTx.serialize()));
     } catch (error) {
       const detail = getErrorMessage(error);
       throw new Error(`DEPLOY_BALANCE:dust=${dustStatus}:${detail}`);
@@ -829,9 +835,9 @@ export class VaultPassClient {
       if (!this.api?.submitTransaction) throw new Error("Wallet cannot submit a transaction.");
       submitted = await this.api.submitTransaction(balancedHex);
     } catch (error) {
-      // Even if submit throws, the tx may have reached the node (Lace sometimes fires the error
-      // callback after broadcasting). Persist the signing key so the operator can use
-      // "Check deployment confirmation" to recover without re-deploying.
+      // Even if submit throws, Lace sometimes broadcasts first. Persist the signing key so the
+      // operator can use "Check deployment confirmation". For "temporarily banned" the tx did
+      // not land — still persist so a short confirmation poll can prove absence if needed.
       await persistKey();
       const raw = error as Record<string, unknown> | null;
       const code = typeof raw?.code === "string" ? raw.code : typeof raw?.error === "object" && raw?.error !== null ? (raw.error as Record<string,unknown>).code : "";
@@ -839,11 +845,21 @@ export class VaultPassClient {
       throw new Error(`DEPLOY_SUBMIT:contractId=${contractId}:${detail}`);
     }
     await persistKey();
-    const txId = typeof submitted === "string"
+    const txId = typeof submitted === "string" && submitted
       ? submitted
       : typeof submitted === "object" && submitted !== null && typeof (submitted as { transactionId?: unknown }).transactionId === "string"
         ? (submitted as { transactionId: string }).transactionId
-        : null;
+        : typeof submitted === "object" && submitted !== null && typeof (submitted as { id?: unknown }).id === "string"
+          ? (submitted as { id: string }).id
+          : null;
+
+    // 1AM often resolves submit with void while the extension toast says failed and history is empty.
+    // Do not enter a 10-minute indexer poll with no evidence of submission.
+    if (!txId && this.isOneAmWallet()) {
+      throw new Error(
+        `DEPLOY_SUBMIT:contractId=${contractId}:1AM returned no transaction id after sign. If history is empty, the deploy did not reach Preview — wait 10–15 minutes, Reset & redeploy, then try once.`,
+      );
+    }
     return { contractId, txId };
   }
 
@@ -916,6 +932,52 @@ export class VaultPassClient {
   isLaceWallet(): boolean {
     const identity = `${this.walletName ?? ""} ${this.walletRdns ?? ""}`.toLowerCase();
     return identity.includes("lace") || identity.includes("cardano");
+  }
+
+  isOneAmWallet(): boolean {
+    const identity = `${this.walletName ?? ""} ${this.walletRdns ?? ""}`.toLowerCase();
+    return identity.includes("1am") || identity.includes("1 am");
+  }
+
+  /**
+   * Balance a proven unsealed tx via the wallet.
+   * Lace needs `{ payFees: true }` so the user pays DUST.
+   * 1AM sponsors fees through ProofStation — pass no options (skill default). Falling back
+   * to payFees only if the no-options path fails keeps both wallets working.
+   */
+  private async balanceUnsealedHex(txHex: string): Promise<string> {
+    if (!this.api?.balanceUnsealedTransaction) throw new Error("Wallet cannot balance a transaction.");
+
+    const tryBalance = async (options?: { payFees?: boolean }) => {
+      const result = options === undefined
+        ? await this.api!.balanceUnsealedTransaction!(txHex)
+        : await this.api!.balanceUnsealedTransaction!(txHex, options);
+      if (!result?.tx || typeof result.tx !== "string") throw new Error("Wallet returned no balanced transaction.");
+      return result.tx;
+    };
+
+    if (this.isOneAmWallet()) {
+      try {
+        return await tryBalance();
+      } catch (firstError) {
+        try {
+          return await tryBalance({ payFees: true });
+        } catch {
+          throw firstError;
+        }
+      }
+    }
+
+    // Lace / other wallets: prefer explicit fee payment from the connected account.
+    try {
+      return await tryBalance({ payFees: true });
+    } catch (firstError) {
+      try {
+        return await tryBalance();
+      } catch {
+        throw firstError;
+      }
+    }
   }
 
   async verifyCredential(secret: Uint8Array, contractId: string, onProgress?: (stage: TransactionProgressStage) => void): Promise<string> {
@@ -1259,16 +1321,25 @@ export class VaultPassClient {
     if (message.startsWith("DEPLOY_BUILD:")) return "The deployment transaction could not be constructed. Verify the wallet is connected to Preview and retry.";
     if (message.startsWith("DEPLOY_PROVE:")) return `Preview proof generation failed: ${message.slice("DEPLOY_PROVE:".length)}`;
     if (message.startsWith("DEPLOY_BALANCE:")) return `Preview transaction balancing failed. Check Lace permissions and Preview resources: ${message.slice("DEPLOY_BALANCE:".length)}`;
-    if (message.startsWith("DEPLOY_CONFIRM:")) return `The deployment was submitted, but the Preview indexer has not confirmed it yet. Keep the wallet on Preview and retry the confirmation check. (${message.slice("DEPLOY_CONFIRM:".length)})`;
+    if (message.startsWith("DEPLOY_CONFIRM:")) {
+      return `The wallet accepted the deploy request, but Preview never indexed a contract at that address. With 1AM this usually means submit failed or the node dropped the tx (history stays empty). Click "Reset & redeploy from scratch", wait 10–15 minutes, reconnect 1AM on Preview, and deploy once — do not keep polling the same address. (${message.slice("DEPLOY_CONFIRM:".length)})`;
+    }
     if (message.startsWith("DUST_EMPTY:")) return `Lace reports zero available Preview DUST, although its DUST capacity is ${message.slice("DUST_EMPTY:".length)}. Wait for the wallet to finish syncing/refilling, then reconnect Lace and retry.`;
     if (message.startsWith("DEPLOY_SUBMIT:")) {
       const rest = message.slice("DEPLOY_SUBMIT:".length);
       const contractMatch = rest.match(/^contractId=([0-9a-f]+):(.*)/i);
       if (contractMatch) {
         const [, addr, detail] = contractMatch;
-        return `Lace threw an error after you signed, but the transaction may still have reached the Midnight node. Use "Check deployment confirmation" below — or paste this address into "Restore published gate": ${addr}. Error detail: ${detail}`;
+        const lowerDetail = detail.toLowerCase();
+        if (lowerDetail.includes("temporarily banned") || lowerDetail.includes("temp banned")) {
+          return `Preview rejected this deploy (transaction temporarily banned). It is not on-chain — 1AM history will stay empty. Wait 10–15 minutes, click "Reset & redeploy from scratch", then Deploy once. Do not spam Deploy. (Derived address was ${addr}.)`;
+        }
+        if (lowerDetail.includes("no transaction id") || lowerDetail.includes("history is empty")) {
+          return `1AM signed but did not return a transaction id, so the deploy almost certainly never landed. Wait, Reset & redeploy, then try once. (Derived address: ${addr}.) Detail: ${detail}`;
+        }
+        return `The wallet reported an error after you signed. The tx may still have reached the node — use "Check deployment confirmation" once, or paste this address into "Restore published gate": ${addr}. Error detail: ${detail}`;
       }
-      return `Lace rejected the sealed deployment transaction: ${rest}`;
+      return `The wallet rejected the sealed deployment transaction: ${rest}`;
     }
     if (lower.includes("prover") || lower.includes("zkir") || lower.includes("verifier") || lower.includes("proof")) return `The Preview proof setup could not be loaded: ${message}`;
     if (lower.includes("dust") || lower.includes("balance") || lower.includes("fee")) return "The wallet could not balance this deployment. Make sure the wallet is funded with the required Preview resources, then try again.";
