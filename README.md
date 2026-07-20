@@ -24,8 +24,8 @@
 
 | Resource | Link |
 |----------|------|
-| **Live demo** | _Deploy after first push to Vercel_ |
-| **Demo video** | _Record 60–90s after live URL is live_ |
+| **Live demo** | https://vaultpassxbt.vercel.app/ |
+| **Demo video** | [View on Google Drive](https://drive.google.com/drive/folders/14r4OFAlopBxbD6uISX23usO-mj6op8bV?usp=sharing) |
 | **Trust model** | [TRUST_MODEL.md](./TRUST_MODEL.md) |
 
 ---
@@ -114,7 +114,7 @@ The ZK contracts are **deployed directly from the Admin console** on the Preview
 |----------|---------|
 | Explorer home | https://preview.midnightexplorer.com |
 | Transaction | `https://preview.midnightexplorer.com/transactions/0x…` |
-| Contract | `https://preview.midnightexplorer.com/contracts/0x…` |
+| Contract | `https://preview.midnightexplorer.com/contracts/…` |
 
 *In the app, you can use the **View on explorer** button next to deploy, enrollment, and access proof IDs.*
 
