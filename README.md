@@ -44,6 +44,23 @@ Web3 communities, private events, and token-gated tools often force users to dox
 - **Session UX**: Once the proof is confirmed, the vault unlocks securely via `sessionStorage` for the duration of the browser session.
 - **Midnight-Aligned UI**: Features the WalletSessionBar, real-time transaction stage feedback, and deep links into the Midnight Preview Explorer.
 
+## 📸 Screenshots
+
+<details>
+  <summary>Click to view application screenshots</summary>
+  <br/>
+  
+  <img src="app/public/Screenshots%20and%20recordings/screenshot-1.png" width="800" alt="Vault Pass Screenshot 1" />
+  <br/><br/>
+  <img src="app/public/Screenshots%20and%20recordings/screenshot-2.png" width="800" alt="Vault Pass Screenshot 2" />
+  <br/><br/>
+  <img src="app/public/Screenshots%20and%20recordings/screenshot-3.png" width="800" alt="Vault Pass Screenshot 3" />
+  <br/><br/>
+  <img src="app/public/Screenshots%20and%20recordings/screenshot-4.png" width="800" alt="Vault Pass Screenshot 4" />
+  <br/><br/>
+  <img src="app/public/Screenshots%20and%20recordings/screenshot-5.png" width="800" alt="Vault Pass Screenshot 5" />
+</details>
+
 ## 🛠️ Architecture & Stack
 
 ### Stack
