@@ -42,7 +42,7 @@ export function explorerTransactionUrl(
 
 /**
  * Contract detail page.
- * Example: https://preview.midnightexplorer.com/contracts/0x...
+ * Example: https://preview.midnightexplorer.com/contracts/05668a...
  */
 export function explorerContractUrl(
   contractId: string | null | undefined,
@@ -51,7 +51,9 @@ export function explorerContractUrl(
   if (!contractId) return null;
   const base = explorerBaseUrl(network);
   if (!base) return null;
-  return `${base}/contracts/${toExplorerHex(contractId)}`;
+  // Midnight Explorer contract pages expect the hash WITHOUT the 0x prefix.
+  const hashWithout0x = contractId.trim().replace(/^0x/i, "");
+  return `${base}/contracts/${hashWithout0x}`;
 }
 
 export function explorerHomeUrl(network: ExplorerNetwork = "preview"): string | null {

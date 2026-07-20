@@ -672,12 +672,12 @@ export class VaultPassClient {
             return String(identifier);
           }
         }
-        // 1AM may resolve with void even when the popup showed a failure. Prefer an explicit
-        // error over a fake pseudo-id so the UI does not enter a 10-minute dead poll.
+        // 1AM resolves submitTransaction with void even when the tx was successfully broadcast
+        // and confirmed on-chain. Return a pseudo-id so the caller can proceed to indexer-based
+        // confirmation polling (which uses contractAddress, not txId).
         if (this.isOneAmWallet()) {
-          throw new Error(
-            "Wallet submit returned no transaction id. If 1AM briefly showed a failure and history is empty, the tx did not reach the chain — wait, reset, and deploy once.",
-          );
+          console.warn("[VaultPass] 1AM returned no transaction id from submitTransaction — will fall through to indexer confirmation.");
+          return uint8ArrayToHex(serialized).slice(0, 64);
         }
         // Last resort for Lace: watchable pseudo-id from the sealed bytes.
         return uint8ArrayToHex(serialized).slice(0, 64);
@@ -853,11 +853,14 @@ export class VaultPassClient {
           ? (submitted as { id: string }).id
           : null;
 
-    // 1AM often resolves submit with void while the extension toast says failed and history is empty.
-    // Do not enter a 10-minute indexer poll with no evidence of submission.
+    // 1AM resolves submitTransaction with void/undefined even when the transaction was
+    // successfully broadcast and confirmed on-chain. Instead of throwing, allow the deploy
+    // flow to proceed to waitForContractDeployment() which polls the indexer by contractAddress
+    // and does not require a txId.
     if (!txId && this.isOneAmWallet()) {
-      throw new Error(
-        `DEPLOY_SUBMIT:contractId=${contractId}:1AM returned no transaction id after sign. If history is empty, the deploy did not reach Preview — wait 10–15 minutes, Reset & redeploy, then try once.`,
+      console.warn(
+        `[VaultPass] 1AM returned no transaction id for deploy (contractId=${contractId}). ` +
+        `Proceeding to indexer confirmation — the tx may have been broadcast successfully.`,
       );
     }
     return { contractId, txId };
@@ -1139,8 +1142,17 @@ export class VaultPassClient {
     }
 
     try {
-      const contractLedger = await this.readContractLedger(chainAddress);
-      if (!contractLedger) throw new Error("Gate contract state is not available on the Preview indexer yet.");
+      // After a fresh deploy, the indexer may take a few seconds to fully index the contract
+      // state even though the contract address is already known. Retry for up to 30 seconds.
+      let contractLedger: Awaited<ReturnType<typeof this.readContractLedger>> = null;
+      const retryDeadline = Date.now() + 30000;
+      while (!contractLedger && Date.now() < retryDeadline) {
+        contractLedger = await this.readContractLedger(chainAddress);
+        if (!contractLedger) {
+          await new Promise((resolve) => window.setTimeout(resolve, 3000));
+        }
+      }
+      if (!contractLedger) throw new Error("Gate contract state is not available on the Preview indexer yet. Wait a minute after deploy and try again.");
       const admin = ensureBytes32(contractLedger.admin);
       if (!bytesEqual(admin, callerBytes)) {
         throw new Error("CREDENTIAL_NOT_ADMIN");
