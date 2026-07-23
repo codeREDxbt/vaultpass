@@ -22,12 +22,12 @@
 
 <br />
 
-| Resource | Link |
-|----------|------|
+| Resource | Link / Address |
+|----------|----------------|
 | **Live demo** | https://vaultpassxbt.vercel.app/ |
 | **Demo video** | [View on Google Drive](https://drive.google.com/drive/folders/14r4OFAlopBxbD6uISX23usO-mj6op8bV?usp=sharing) |
-| **Deployed Contract #1 (Preview)** | [Midnight Explorer](https://preview.midnightexplorer.com/contracts/0x8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314) \| [1AM Explorer Tx](https://explorer.1am.xyz/tx/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd?network=preview) |
-| **Deployed Contract #2 (Preview)** | [Midnight Explorer](https://preview.midnightexplorer.com/contracts/0xcbe6b66f54d0006d6b696261eedd49b8cf9c49a717d7ff22a6342ba88d7e5e3e) \| [1AM Explorer Tx](https://explorer.1am.xyz/tx/b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e?network=preview) |
+| **Contract #1 Address** | [`0x8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314`](https://preview.midnightexplorer.com/contracts/0x8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314) <br/> ([Midnight Explorer](https://preview.midnightexplorer.com/contracts/0x8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314) \| [1AM Explorer Tx](https://explorer.1am.xyz/tx/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd?network=preview)) |
+| **Contract #2 Address** | [`0xcbe6b66f54d0006d6b696261eedd49b8cf9c49a717d7ff22a6342ba88d7e5e3e`](https://preview.midnightexplorer.com/contracts/0xcbe6b66f54d0006d6b696261eedd49b8cf9c49a717d7ff22a6342ba88d7e5e3e) <br/> ([Midnight Explorer](https://preview.midnightexplorer.com/contracts/0xcbe6b66f54d0006d6b696261eedd49b8cf9c49a717d7ff22a6342ba88d7e5e3e) \| [1AM Explorer Tx](https://explorer.1am.xyz/tx/b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e?network=preview)) |
 | **Trust model** | [TRUST_MODEL.md](./TRUST_MODEL.md) |
 
 ---
@@ -129,10 +129,17 @@ The ZK contracts are **deployed directly from the Admin console** on the Midnigh
 
 ## 🔍 On-chain Verification & Deployed Smart Contracts
 
-| Deployment | Midnight Explorer Contract | 1AM Explorer Transaction | Member Gate Demo |
-|------------|----------------------------|--------------------------|------------------|
-| **Gate Contract #1** | [`0x8fe76c305f3b...`](https://preview.midnightexplorer.com/contracts/0x8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314) | [View Tx `05668a7...`](https://explorer.1am.xyz/tx/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd?network=preview) | [Open Gate #1](https://vaultpassxbt.vercel.app/gate?contract=8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314) |
-| **Gate Contract #2** | [`0xcbe6b66f54d0...`](https://preview.midnightexplorer.com/contracts/0xcbe6b66f54d0006d6b696261eedd49b8cf9c49a717d7ff22a6342ba88d7e5e3e) | [View Tx `b2dc4e3...`](https://explorer.1am.xyz/tx/b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e?network=preview) | [Open Gate #2](https://vaultpassxbt.vercel.app/gate?contract=cbe6b66f54d0006d6b696261eedd49b8cf9c49a717d7ff22a6342ba88d7e5e3e) |
+### 📍 Gate Deployment #1
+- **Contract Address**: `0x8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314`
+- **Midnight Explorer**: [View Contract on Midnight Explorer](https://preview.midnightexplorer.com/contracts/0x8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314)
+- **1AM Explorer Tx**: [`05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd`](https://explorer.1am.xyz/tx/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd?network=preview)
+- **Live Member Gate Demo**: [Open Gate #1](https://vaultpassxbt.vercel.app/gate?contract=8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314)
+
+### 📍 Gate Deployment #2
+- **Contract Address**: `0xcbe6b66f54d0006d6b696261eedd49b8cf9c49a717d7ff22a6342ba88d7e5e3e`
+- **Midnight Explorer**: [View Contract on Midnight Explorer](https://preview.midnightexplorer.com/contracts/0xcbe6b66f54d0006d6b696261eedd49b8cf9c49a717d7ff22a6342ba88d7e5e3e)
+- **1AM Explorer Tx**: [`b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e`](https://explorer.1am.xyz/tx/b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e?network=preview)
+- **Live Member Gate Demo**: [Open Gate #2](https://vaultpassxbt.vercel.app/gate?contract=cbe6b66f54d0006d6b696261eedd49b8cf9c49a717d7ff22a6342ba88d7e5e3e)
 
 ### How Contract Addresses Work in Vault Pass
 1. **Live Deployment Verification**: Reviewers and members can inspect contract states on the [Midnight Explorer](https://preview.midnightexplorer.com/contracts/0x8fe76c305f3b5acf8cee52d3ba3bb72ef463e619a758db04463663ab3b827314) or transaction receipts on the [1AM Explorer](https://explorer.1am.xyz/tx/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd?network=preview).
