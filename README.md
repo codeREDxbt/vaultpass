@@ -26,6 +26,8 @@
 |----------|------|
 | **Live demo** | https://vaultpassxbt.vercel.app/ |
 | **Demo video** | [View on Google Drive](https://drive.google.com/drive/folders/14r4OFAlopBxbD6uISX23usO-mj6op8bV?usp=sharing) |
+| **Gate Contract Tx #1 (Preview)** | [`05668a7997ee...`](https://explorer.1am.xyz/tx/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd?network=preview) |
+| **Gate Contract Tx #2 (Preview)** | [`b2dc4e35c9d7...`](https://explorer.1am.xyz/tx/b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e?network=preview) |
 | **Trust model** | [TRUST_MODEL.md](./TRUST_MODEL.md) |
 
 ---
@@ -121,19 +123,22 @@ Vault Pass is a static Next.js frontend and requires **zero environment variable
 4. Add the resulting production URL to the **Live demo** section above.
 
 ### Smart Contract
-The ZK contracts are **deployed directly from the Admin console** on the Preview network by the operator's wallet, not via CI. Every operator deployment creates a new contract address.
+The ZK contracts are **deployed directly from the Admin console** on the Midnight Preview network by the operator's wallet. Each deployment generates a unique 64-character contract address.
 
 ---
 
-## 🔍 On-chain Verification
+## 🔍 On-chain Verification & Deployed Smart Contracts
 
-| Resource | Pattern |
-|----------|---------|
-| Explorer home | https://preview.midnightexplorer.com |
-| Transaction | `https://preview.midnightexplorer.com/transactions/0x…` |
-| Contract | `https://preview.midnightexplorer.com/contracts/…` |
+| Contract / Tx | Explorer Link | Details |
+|---------------|---------------|---------|
+| **Deployment Tx #1** | [`05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd`](https://explorer.1am.xyz/tx/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd?network=preview) | [1AM Explorer](https://explorer.1am.xyz/tx/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd?network=preview) \| [Midnight Explorer](https://preview.midnightexplorer.com/contracts/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd) |
+| **Deployment / Proof Tx #2** | [`b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e`](https://explorer.1am.xyz/tx/b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e?network=preview) | [1AM Explorer](https://explorer.1am.xyz/tx/b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e?network=preview) \| [Midnight Explorer](https://preview.midnightexplorer.com/contracts/b2dc4e35c9d7e1e8b880821ca97c83e94c5019145903820b4f9a0827b4047a3e) |
+| **Live Pre-configured Gate** | [Open Gate on Live Demo](https://vaultpassxbt.vercel.app/gate?contract=05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd) | Embedded `?contract=` parameter on Midnight Preview |
 
-*In the app, you can use the **View on explorer** button next to deploy, enrollment, and access proof IDs.*
+### How Contract Addresses Work in Vault Pass
+1. **Live Deployment Verification**: Reviewers and members can inspect on-chain contract transactions directly on the [1AM Explorer](https://explorer.1am.xyz/tx/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd?network=preview) or [Midnight Explorer](https://preview.midnightexplorer.com/contracts/05668a7997ee881637a04a7d281dedcd4d59aa3980375ffdf13ee63e08a710cd).
+2. **Admin Console (`/admin`)**: Whenever an operator deploys a new gate, the generated contract address is stored in local state and displayed alongside an interactive **View on Explorer** button.
+3. **Shareable Gate Links**: Published gates embed the contract address in the URL (e.g. `https://vaultpassxbt.vercel.app/gate?contract=05668a7...`), enabling instant zero-knowledge proof generation against the specific on-chain contract instance.
 
 ---
 
